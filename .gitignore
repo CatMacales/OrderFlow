@@ -1,0 +1,11 @@
+/bin/
+/coverage.out
+/coverage.html
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+
+# Local planning and discussion notes
+/.project-notes/
