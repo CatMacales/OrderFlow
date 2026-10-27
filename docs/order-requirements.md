@@ -73,4 +73,4 @@ Errors have recognizable codes and explanatory messages. Failed creation stores 
 
 [Acceptance examples](order-acceptance.md) specify the create/get flow, all 12 state/action pairs, invalid input, missing orders, and external string preservation. They are future test specifications, not executed tests.
 
-Implementation has not started; these examples do not represent passing tests.
+The domain rules are implemented and unit-tested in `internal/order/domain`. Full application-operation and storage acceptance remains pending; these examples do not imply that stage 2 is complete.
