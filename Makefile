@@ -1,6 +1,6 @@
 GO ?= go
 
-.PHONY: run build test test-race fmt vet
+.PHONY: run build test test-race fmt vet generate
 
 run:
 	$(GO) run ./cmd/orderflow
@@ -19,3 +19,6 @@ fmt:
 
 vet:
 	$(GO) vet ./...
+
+generate:
+	$(GO) generate ./...
