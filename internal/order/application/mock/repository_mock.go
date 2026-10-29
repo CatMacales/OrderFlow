@@ -18,6 +18,13 @@ type RepositoryMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
+	funcConfirm          func(ctx context.Context, id uuid.UUID) (err error)
+	funcConfirmOrigin    string
+	inspectFuncConfirm   func(ctx context.Context, id uuid.UUID)
+	afterConfirmCounter  uint64
+	beforeConfirmCounter uint64
+	ConfirmMock          mRepositoryMockConfirm
+
 	funcCreate          func(ctx context.Context, order *domain.Order) (err error)
 	funcCreateOrigin    string
 	inspectFuncCreate   func(ctx context.Context, order *domain.Order)
@@ -41,6 +48,9 @@ func NewRepositoryMock(t minimock.Tester) *RepositoryMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.ConfirmMock = mRepositoryMockConfirm{mock: m}
+	m.ConfirmMock.callArgs = []*RepositoryMockConfirmParams{}
+
 	m.CreateMock = mRepositoryMockCreate{mock: m}
 	m.CreateMock.callArgs = []*RepositoryMockCreateParams{}
 
@@ -50,6 +60,348 @@ func NewRepositoryMock(t minimock.Tester) *RepositoryMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mRepositoryMockConfirm struct {
+	optional           bool
+	mock               *RepositoryMock
+	defaultExpectation *RepositoryMockConfirmExpectation
+	expectations       []*RepositoryMockConfirmExpectation
+
+	callArgs []*RepositoryMockConfirmParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// RepositoryMockConfirmExpectation specifies expectation struct of the Repository.Confirm
+type RepositoryMockConfirmExpectation struct {
+	mock               *RepositoryMock
+	params             *RepositoryMockConfirmParams
+	paramPtrs          *RepositoryMockConfirmParamPtrs
+	expectationOrigins RepositoryMockConfirmExpectationOrigins
+	results            *RepositoryMockConfirmResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// RepositoryMockConfirmParams contains parameters of the Repository.Confirm
+type RepositoryMockConfirmParams struct {
+	ctx context.Context
+	id  uuid.UUID
+}
+
+// RepositoryMockConfirmParamPtrs contains pointers to parameters of the Repository.Confirm
+type RepositoryMockConfirmParamPtrs struct {
+	ctx *context.Context
+	id  *uuid.UUID
+}
+
+// RepositoryMockConfirmResults contains results of the Repository.Confirm
+type RepositoryMockConfirmResults struct {
+	err error
+}
+
+// RepositoryMockConfirmOrigins contains origins of expectations of the Repository.Confirm
+type RepositoryMockConfirmExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originId  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmConfirm *mRepositoryMockConfirm) Optional() *mRepositoryMockConfirm {
+	mmConfirm.optional = true
+	return mmConfirm
+}
+
+// Expect sets up expected params for Repository.Confirm
+func (mmConfirm *mRepositoryMockConfirm) Expect(ctx context.Context, id uuid.UUID) *mRepositoryMockConfirm {
+	if mmConfirm.mock.funcConfirm != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Set")
+	}
+
+	if mmConfirm.defaultExpectation == nil {
+		mmConfirm.defaultExpectation = &RepositoryMockConfirmExpectation{}
+	}
+
+	if mmConfirm.defaultExpectation.paramPtrs != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by ExpectParams functions")
+	}
+
+	mmConfirm.defaultExpectation.params = &RepositoryMockConfirmParams{ctx, id}
+	mmConfirm.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmConfirm.expectations {
+		if minimock.Equal(e.params, mmConfirm.defaultExpectation.params) {
+			mmConfirm.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmConfirm.defaultExpectation.params)
+		}
+	}
+
+	return mmConfirm
+}
+
+// ExpectCtxParam1 sets up expected param ctx for Repository.Confirm
+func (mmConfirm *mRepositoryMockConfirm) ExpectCtxParam1(ctx context.Context) *mRepositoryMockConfirm {
+	if mmConfirm.mock.funcConfirm != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Set")
+	}
+
+	if mmConfirm.defaultExpectation == nil {
+		mmConfirm.defaultExpectation = &RepositoryMockConfirmExpectation{}
+	}
+
+	if mmConfirm.defaultExpectation.params != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Expect")
+	}
+
+	if mmConfirm.defaultExpectation.paramPtrs == nil {
+		mmConfirm.defaultExpectation.paramPtrs = &RepositoryMockConfirmParamPtrs{}
+	}
+	mmConfirm.defaultExpectation.paramPtrs.ctx = &ctx
+	mmConfirm.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmConfirm
+}
+
+// ExpectIdParam2 sets up expected param id for Repository.Confirm
+func (mmConfirm *mRepositoryMockConfirm) ExpectIdParam2(id uuid.UUID) *mRepositoryMockConfirm {
+	if mmConfirm.mock.funcConfirm != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Set")
+	}
+
+	if mmConfirm.defaultExpectation == nil {
+		mmConfirm.defaultExpectation = &RepositoryMockConfirmExpectation{}
+	}
+
+	if mmConfirm.defaultExpectation.params != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Expect")
+	}
+
+	if mmConfirm.defaultExpectation.paramPtrs == nil {
+		mmConfirm.defaultExpectation.paramPtrs = &RepositoryMockConfirmParamPtrs{}
+	}
+	mmConfirm.defaultExpectation.paramPtrs.id = &id
+	mmConfirm.defaultExpectation.expectationOrigins.originId = minimock.CallerInfo(1)
+
+	return mmConfirm
+}
+
+// Inspect accepts an inspector function that has same arguments as the Repository.Confirm
+func (mmConfirm *mRepositoryMockConfirm) Inspect(f func(ctx context.Context, id uuid.UUID)) *mRepositoryMockConfirm {
+	if mmConfirm.mock.inspectFuncConfirm != nil {
+		mmConfirm.mock.t.Fatalf("Inspect function is already set for RepositoryMock.Confirm")
+	}
+
+	mmConfirm.mock.inspectFuncConfirm = f
+
+	return mmConfirm
+}
+
+// Return sets up results that will be returned by Repository.Confirm
+func (mmConfirm *mRepositoryMockConfirm) Return(err error) *RepositoryMock {
+	if mmConfirm.mock.funcConfirm != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Set")
+	}
+
+	if mmConfirm.defaultExpectation == nil {
+		mmConfirm.defaultExpectation = &RepositoryMockConfirmExpectation{mock: mmConfirm.mock}
+	}
+	mmConfirm.defaultExpectation.results = &RepositoryMockConfirmResults{err}
+	mmConfirm.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmConfirm.mock
+}
+
+// Set uses given function f to mock the Repository.Confirm method
+func (mmConfirm *mRepositoryMockConfirm) Set(f func(ctx context.Context, id uuid.UUID) (err error)) *RepositoryMock {
+	if mmConfirm.defaultExpectation != nil {
+		mmConfirm.mock.t.Fatalf("Default expectation is already set for the Repository.Confirm method")
+	}
+
+	if len(mmConfirm.expectations) > 0 {
+		mmConfirm.mock.t.Fatalf("Some expectations are already set for the Repository.Confirm method")
+	}
+
+	mmConfirm.mock.funcConfirm = f
+	mmConfirm.mock.funcConfirmOrigin = minimock.CallerInfo(1)
+	return mmConfirm.mock
+}
+
+// When sets expectation for the Repository.Confirm which will trigger the result defined by the following
+// Then helper
+func (mmConfirm *mRepositoryMockConfirm) When(ctx context.Context, id uuid.UUID) *RepositoryMockConfirmExpectation {
+	if mmConfirm.mock.funcConfirm != nil {
+		mmConfirm.mock.t.Fatalf("RepositoryMock.Confirm mock is already set by Set")
+	}
+
+	expectation := &RepositoryMockConfirmExpectation{
+		mock:               mmConfirm.mock,
+		params:             &RepositoryMockConfirmParams{ctx, id},
+		expectationOrigins: RepositoryMockConfirmExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmConfirm.expectations = append(mmConfirm.expectations, expectation)
+	return expectation
+}
+
+// Then sets up Repository.Confirm return parameters for the expectation previously defined by the When method
+func (e *RepositoryMockConfirmExpectation) Then(err error) *RepositoryMock {
+	e.results = &RepositoryMockConfirmResults{err}
+	return e.mock
+}
+
+// Times sets number of times Repository.Confirm should be invoked
+func (mmConfirm *mRepositoryMockConfirm) Times(n uint64) *mRepositoryMockConfirm {
+	if n == 0 {
+		mmConfirm.mock.t.Fatalf("Times of RepositoryMock.Confirm mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmConfirm.expectedInvocations, n)
+	mmConfirm.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmConfirm
+}
+
+func (mmConfirm *mRepositoryMockConfirm) invocationsDone() bool {
+	if len(mmConfirm.expectations) == 0 && mmConfirm.defaultExpectation == nil && mmConfirm.mock.funcConfirm == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmConfirm.mock.afterConfirmCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmConfirm.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Confirm implements mm_application.Repository
+func (mmConfirm *RepositoryMock) Confirm(ctx context.Context, id uuid.UUID) (err error) {
+	mm_atomic.AddUint64(&mmConfirm.beforeConfirmCounter, 1)
+	defer mm_atomic.AddUint64(&mmConfirm.afterConfirmCounter, 1)
+
+	mmConfirm.t.Helper()
+
+	if mmConfirm.inspectFuncConfirm != nil {
+		mmConfirm.inspectFuncConfirm(ctx, id)
+	}
+
+	mm_params := RepositoryMockConfirmParams{ctx, id}
+
+	// Record call args
+	mmConfirm.ConfirmMock.mutex.Lock()
+	mmConfirm.ConfirmMock.callArgs = append(mmConfirm.ConfirmMock.callArgs, &mm_params)
+	mmConfirm.ConfirmMock.mutex.Unlock()
+
+	for _, e := range mmConfirm.ConfirmMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmConfirm.ConfirmMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmConfirm.ConfirmMock.defaultExpectation.Counter, 1)
+		mm_want := mmConfirm.ConfirmMock.defaultExpectation.params
+		mm_want_ptrs := mmConfirm.ConfirmMock.defaultExpectation.paramPtrs
+
+		mm_got := RepositoryMockConfirmParams{ctx, id}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmConfirm.t.Errorf("RepositoryMock.Confirm got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmConfirm.ConfirmMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.id != nil && !minimock.Equal(*mm_want_ptrs.id, mm_got.id) {
+				mmConfirm.t.Errorf("RepositoryMock.Confirm got unexpected parameter id, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmConfirm.ConfirmMock.defaultExpectation.expectationOrigins.originId, *mm_want_ptrs.id, mm_got.id, minimock.Diff(*mm_want_ptrs.id, mm_got.id))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmConfirm.t.Errorf("RepositoryMock.Confirm got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmConfirm.ConfirmMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmConfirm.ConfirmMock.defaultExpectation.results
+		if mm_results == nil {
+			mmConfirm.t.Fatal("No results are set for the RepositoryMock.Confirm")
+		}
+		return (*mm_results).err
+	}
+	if mmConfirm.funcConfirm != nil {
+		return mmConfirm.funcConfirm(ctx, id)
+	}
+	mmConfirm.t.Fatalf("Unexpected call to RepositoryMock.Confirm. %v %v", ctx, id)
+	return
+}
+
+// ConfirmAfterCounter returns a count of finished RepositoryMock.Confirm invocations
+func (mmConfirm *RepositoryMock) ConfirmAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmConfirm.afterConfirmCounter)
+}
+
+// ConfirmBeforeCounter returns a count of RepositoryMock.Confirm invocations
+func (mmConfirm *RepositoryMock) ConfirmBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmConfirm.beforeConfirmCounter)
+}
+
+// Calls returns a list of arguments used in each call to RepositoryMock.Confirm.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmConfirm *mRepositoryMockConfirm) Calls() []*RepositoryMockConfirmParams {
+	mmConfirm.mutex.RLock()
+
+	argCopy := make([]*RepositoryMockConfirmParams, len(mmConfirm.callArgs))
+	copy(argCopy, mmConfirm.callArgs)
+
+	mmConfirm.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockConfirmDone returns true if the count of the Confirm invocations corresponds
+// the number of defined expectations
+func (m *RepositoryMock) MinimockConfirmDone() bool {
+	if m.ConfirmMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ConfirmMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ConfirmMock.invocationsDone()
+}
+
+// MinimockConfirmInspect logs each unmet expectation
+func (m *RepositoryMock) MinimockConfirmInspect() {
+	for _, e := range m.ConfirmMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to RepositoryMock.Confirm at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterConfirmCounter := mm_atomic.LoadUint64(&m.afterConfirmCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ConfirmMock.defaultExpectation != nil && afterConfirmCounter < 1 {
+		if m.ConfirmMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to RepositoryMock.Confirm at\n%s", m.ConfirmMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to RepositoryMock.Confirm at\n%s with params: %#v", m.ConfirmMock.defaultExpectation.expectationOrigins.origin, *m.ConfirmMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcConfirm != nil && afterConfirmCounter < 1 {
+		m.t.Errorf("Expected call to RepositoryMock.Confirm at\n%s", m.funcConfirmOrigin)
+	}
+
+	if !m.ConfirmMock.invocationsDone() && afterConfirmCounter > 0 {
+		m.t.Errorf("Expected %d calls to RepositoryMock.Confirm at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ConfirmMock.expectedInvocations), m.ConfirmMock.expectedInvocationsOrigin, afterConfirmCounter)
+	}
 }
 
 type mRepositoryMockCreate struct {
@@ -741,6 +1093,8 @@ func (m *RepositoryMock) MinimockGetInspect() {
 func (m *RepositoryMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockConfirmInspect()
+
 			m.MinimockCreateInspect()
 
 			m.MinimockGetInspect()
@@ -767,6 +1121,7 @@ func (m *RepositoryMock) MinimockWait(timeout mm_time.Duration) {
 func (m *RepositoryMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockConfirmDone() &&
 		m.MinimockCreateDone() &&
 		m.MinimockGetDone()
 }

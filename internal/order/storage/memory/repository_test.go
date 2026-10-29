@@ -30,6 +30,10 @@ func newOrder(t *testing.T, id uuid.UUID, customer string) *domain.Order {
 	return order
 }
 
+//
+// Get
+//
+
 func TestCreateGetAndIsolation(t *testing.T) {
 	ctx := context.Background()
 	repository := memory.NewRepository()
@@ -93,6 +97,10 @@ func TestGetMissing(t *testing.T) {
 	}
 }
 
+//
+// Create
+//
+
 func TestCreateNil(t *testing.T) {
 	repository := memory.NewRepository()
 	if err := repository.Create(context.Background(), nil); err == nil {
@@ -115,9 +123,7 @@ func TestConcurrentCreateAndGet(t *testing.T) {
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 	for _, order := range orders {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			if err := repository.Create(ctx, order); err != nil {
 				t.Error(err)
@@ -134,7 +140,7 @@ func TestConcurrentCreateAndGet(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -147,9 +153,7 @@ func TestConcurrentDuplicateCreate(t *testing.T) {
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 	for range 32 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 			err := repository.Create(context.Background(), order)
 			if err == nil {
@@ -157,7 +161,7 @@ func TestConcurrentDuplicateCreate(t *testing.T) {
 			} else if !errors.Is(err, storage.ErrOrderAlreadyExists) {
 				t.Errorf("unexpected error: %v", err)
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -197,4 +201,102 @@ func TestServiceCreateGet(t *testing.T) {
 	if !errors.Is(err, storage.ErrOrderNotFound) {
 		t.Fatalf("missing order error: %v", err)
 	}
+}
+
+//
+// Confirm
+//
+
+func TestConfirm(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(*domain.Order) error
+		status  domain.Status
+		err     error
+	}{
+		{"created", nil, domain.StatusConfirmed, nil},
+		{"confirmed", (*domain.Order).Confirm, domain.StatusConfirmed, nil},
+		{"completed", func(order *domain.Order) error {
+			if err := order.Confirm(); err != nil {
+				return err
+			}
+			return order.Complete()
+		}, domain.StatusCompleted, nil},
+		{"cancelled", (*domain.Order).Cancel, domain.StatusCancelled, domain.ErrInvalidOrderState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			repository := memory.NewRepository()
+			order := newOrder(t, uuid.New(), "customer")
+			if tc.prepare != nil {
+				if err := tc.prepare(order); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := repository.Create(ctx, order); err != nil {
+				t.Fatal(err)
+			}
+			before, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := repository.Confirm(ctx, order.ID()); !errors.Is(err, tc.err) {
+				t.Fatalf("error=%v, want %v", err, tc.err)
+			}
+			stored, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.Status() != tc.status {
+				t.Fatalf("status=%v, want %v", stored.Status(), tc.status)
+			}
+			if stored.ID() != order.ID() || stored.CustomerID() != order.CustomerID() || !reflect.DeepEqual(stored.Items(), order.Items()) {
+				t.Fatalf("confirmation changed order data: %+v", stored)
+			}
+			if !reflect.DeepEqual(before, order) {
+				t.Fatal("confirmation mutated a previously returned order")
+			}
+		})
+	}
+}
+
+func TestConfirmMissing(t *testing.T) {
+	repository := memory.NewRepository()
+	id := uuid.New()
+	if err := repository.Confirm(t.Context(), id); !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("error=%v, want %v", err, storage.ErrOrderNotFound)
+	}
+	if order, err := repository.Get(t.Context(), id); order != nil || !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("missing order was created: order=%v error=%v", order, err)
+	}
+}
+
+func TestConcurrentConfirmAndGet(t *testing.T) {
+	ctx := t.Context()
+	repository := memory.NewRepository()
+	order := newOrder(t, uuid.New(), "c")
+	if err := repository.Create(ctx, order); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for range 32 {
+		wg.Go(func() {
+			<-start
+			if err := repository.Confirm(ctx, order.ID()); err != nil {
+				t.Error(err)
+				return
+			}
+			stored, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if stored.Status() != domain.StatusConfirmed {
+				t.Errorf("status=%v, want confirmed", stored.Status())
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
 }
