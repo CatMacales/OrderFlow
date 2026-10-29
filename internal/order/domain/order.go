@@ -17,17 +17,14 @@ type Order struct {
 // NewOrder creates a placed order awaiting store confirmation.
 // UUID generation belongs to the caller; only valid v4 IDs are accepted.
 func NewOrder(id uuid.UUID, customerID string, items []Item) (*Order, error) {
-	if id == uuid.Nil {
-		return nil, fmt.Errorf("%w: order_id must not be nil", ErrInvalidArgument)
-	}
-	if id.Version() != 4 || id.Variant() != uuid.RFC4122 {
-		return nil, fmt.Errorf("%w: order_id must be a UUID v4 with RFC 4122 variant", ErrInvalidArgument)
+	if err := ValidateOrderID(id); err != nil {
+		return nil, err
 	}
 	if customerID == "" {
-		return nil, fmt.Errorf("%w: customer_id must not be empty", ErrInvalidArgument)
+		return nil, fmt.Errorf("customer_id must not be empty: %w", ErrInvalidArgument)
 	}
 	if len(items) == 0 {
-		return nil, fmt.Errorf("%w: items must contain at least one line", ErrInvalidArgument)
+		return nil, fmt.Errorf("items must contain at least one line: %w", ErrInvalidArgument)
 	}
 	seen := make(map[string]struct{}, len(items))
 	for i, item := range items {
@@ -35,7 +32,7 @@ func NewOrder(id uuid.UUID, customerID string, items []Item) (*Order, error) {
 			return nil, fmt.Errorf("items[%d]: %w", i, err)
 		}
 		if _, exists := seen[item.productID]; exists {
-			return nil, fmt.Errorf("%w: items[%d].product_id is duplicated", ErrInvalidArgument, i)
+			return nil, fmt.Errorf("items[%d].product_id is duplicated: %w", i, ErrInvalidArgument)
 		}
 		seen[item.productID] = struct{}{}
 	}
@@ -86,7 +83,7 @@ func (o *Order) Complete() error {
 	case StatusCompleted:
 		return nil
 	default:
-		return fmt.Errorf("%w: cannot complete order in %q state", ErrInvalidOrderState, o.status)
+		return fmt.Errorf("cannot complete order in %q state: %w", o.status, ErrInvalidOrderState)
 	}
 }
 
@@ -98,6 +95,19 @@ func (o *Order) Cancel() error {
 	case StatusCancelled:
 		return nil
 	default:
-		return fmt.Errorf("%w: cannot cancel order in %q state", ErrInvalidOrderState, o.status)
+		return fmt.Errorf("cannot cancel order in %q state: %w", o.status, ErrInvalidOrderState)
 	}
+}
+
+func ValidateOrderID(id uuid.UUID) error {
+	if id == uuid.Nil {
+		return fmt.Errorf("order_id must not be nil: %w", ErrInvalidArgument)
+	}
+	if id.Version() != 4 || id.Variant() != uuid.RFC4122 {
+		return fmt.Errorf(
+			"order_id must be a UUID v4 with RFC 4122 variant: %w",
+			ErrInvalidArgument,
+		)
+	}
+	return nil
 }

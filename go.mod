@@ -2,7 +2,12 @@ module github.com/CatMacales/OrderFlow
 
 go 1.27.3
 
-tool github.com/abice/go-enum
+tool (
+	github.com/abice/go-enum
+	github.com/gojuno/minimock/v3/cmd/minimock
+)
+
+require github.com/google/uuid v1.6.0
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
@@ -11,8 +16,10 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/abice/go-enum v0.9.5 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gojuno/minimock/v3 v3.4.7 // indirect
 	github.com/golang/mock v1.6.0 // indirect
-	github.com/google/uuid v1.6.0
+	github.com/hexdigest/gowrap v1.4.3 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -20,6 +27,8 @@ require (
 	github.com/mattn/goveralls v0.0.12 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.7.0 // indirect
