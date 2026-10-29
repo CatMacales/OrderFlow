@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, order *domain.Order) error
 	Get(ctx context.Context, id uuid.UUID) (*domain.Order, error)
+	Confirm(ctx context.Context, id uuid.UUID) error
 }
 
 type Service struct {

@@ -45,3 +45,21 @@ func (r *Repository) Get(_ context.Context, id uuid.UUID) (*domain.Order, error)
 
 	return &order, nil
 }
+
+func (r *Repository) Confirm(_ context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	order, exist := r.orders[id]
+	if !exist {
+		return fmt.Errorf("get order from memory to confirm: %w", storage.ErrOrderNotFound)
+	}
+
+	err := order.Confirm()
+	if err != nil {
+		return fmt.Errorf("confirm order in memory: %w", err)
+	}
+
+	r.orders[id] = order
+
+	return nil
+}
