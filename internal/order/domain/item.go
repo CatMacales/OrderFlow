@@ -26,10 +26,10 @@ func (i Item) Quantity() int64 {
 
 func (i Item) validate() error {
 	if i.productID == "" {
-		return fmt.Errorf("%w: product_id must not be empty", ErrInvalidArgument)
+		return fmt.Errorf("product_id must not be empty: %w", ErrInvalidArgument)
 	}
 	if i.quantity <= 0 {
-		return fmt.Errorf("%w: quantity must be positive", ErrInvalidArgument)
+		return fmt.Errorf("quantity must be positive: %w", ErrInvalidArgument)
 	}
 	return nil
 }
