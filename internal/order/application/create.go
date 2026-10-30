@@ -19,11 +19,13 @@ type CreateItemInput struct {
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (uuid.UUID, error) {
+	const op = "create order"
+
 	domainItems := make([]domain.Item, len(input.Items))
 	for i, item := range input.Items {
 		newItem, err := domain.NewItem(item.ProductID, item.Quantity)
 		if err != nil {
-			return uuid.UUID{}, fmt.Errorf("build order item at index %d: %w", i, err)
+			return uuid.UUID{}, fmt.Errorf("%s: build order item at index %d: %w", op, i, err)
 		}
 		domainItems[i] = newItem
 	}
@@ -31,12 +33,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (uuid.UUID, err
 	id := s.createID()
 	order, err := domain.NewOrder(id, input.CustomerID, domainItems)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("build order: %w", err)
+		return uuid.UUID{}, fmt.Errorf("%s: build order: %w", op, err)
 	}
 
 	err = s.repository.Create(ctx, order)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("create order: %w", err)
+		return uuid.UUID{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return id, nil

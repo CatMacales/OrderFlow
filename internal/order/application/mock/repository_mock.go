@@ -18,6 +18,20 @@ type RepositoryMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
+	funcCancel          func(ctx context.Context, id uuid.UUID) (err error)
+	funcCancelOrigin    string
+	inspectFuncCancel   func(ctx context.Context, id uuid.UUID)
+	afterCancelCounter  uint64
+	beforeCancelCounter uint64
+	CancelMock          mRepositoryMockCancel
+
+	funcComplete          func(ctx context.Context, id uuid.UUID) (err error)
+	funcCompleteOrigin    string
+	inspectFuncComplete   func(ctx context.Context, id uuid.UUID)
+	afterCompleteCounter  uint64
+	beforeCompleteCounter uint64
+	CompleteMock          mRepositoryMockComplete
+
 	funcConfirm          func(ctx context.Context, id uuid.UUID) (err error)
 	funcConfirmOrigin    string
 	inspectFuncConfirm   func(ctx context.Context, id uuid.UUID)
@@ -48,6 +62,12 @@ func NewRepositoryMock(t minimock.Tester) *RepositoryMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.CancelMock = mRepositoryMockCancel{mock: m}
+	m.CancelMock.callArgs = []*RepositoryMockCancelParams{}
+
+	m.CompleteMock = mRepositoryMockComplete{mock: m}
+	m.CompleteMock.callArgs = []*RepositoryMockCompleteParams{}
+
 	m.ConfirmMock = mRepositoryMockConfirm{mock: m}
 	m.ConfirmMock.callArgs = []*RepositoryMockConfirmParams{}
 
@@ -60,6 +80,690 @@ func NewRepositoryMock(t minimock.Tester) *RepositoryMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mRepositoryMockCancel struct {
+	optional           bool
+	mock               *RepositoryMock
+	defaultExpectation *RepositoryMockCancelExpectation
+	expectations       []*RepositoryMockCancelExpectation
+
+	callArgs []*RepositoryMockCancelParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// RepositoryMockCancelExpectation specifies expectation struct of the Repository.Cancel
+type RepositoryMockCancelExpectation struct {
+	mock               *RepositoryMock
+	params             *RepositoryMockCancelParams
+	paramPtrs          *RepositoryMockCancelParamPtrs
+	expectationOrigins RepositoryMockCancelExpectationOrigins
+	results            *RepositoryMockCancelResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// RepositoryMockCancelParams contains parameters of the Repository.Cancel
+type RepositoryMockCancelParams struct {
+	ctx context.Context
+	id  uuid.UUID
+}
+
+// RepositoryMockCancelParamPtrs contains pointers to parameters of the Repository.Cancel
+type RepositoryMockCancelParamPtrs struct {
+	ctx *context.Context
+	id  *uuid.UUID
+}
+
+// RepositoryMockCancelResults contains results of the Repository.Cancel
+type RepositoryMockCancelResults struct {
+	err error
+}
+
+// RepositoryMockCancelOrigins contains origins of expectations of the Repository.Cancel
+type RepositoryMockCancelExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originId  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmCancel *mRepositoryMockCancel) Optional() *mRepositoryMockCancel {
+	mmCancel.optional = true
+	return mmCancel
+}
+
+// Expect sets up expected params for Repository.Cancel
+func (mmCancel *mRepositoryMockCancel) Expect(ctx context.Context, id uuid.UUID) *mRepositoryMockCancel {
+	if mmCancel.mock.funcCancel != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Set")
+	}
+
+	if mmCancel.defaultExpectation == nil {
+		mmCancel.defaultExpectation = &RepositoryMockCancelExpectation{}
+	}
+
+	if mmCancel.defaultExpectation.paramPtrs != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by ExpectParams functions")
+	}
+
+	mmCancel.defaultExpectation.params = &RepositoryMockCancelParams{ctx, id}
+	mmCancel.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmCancel.expectations {
+		if minimock.Equal(e.params, mmCancel.defaultExpectation.params) {
+			mmCancel.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmCancel.defaultExpectation.params)
+		}
+	}
+
+	return mmCancel
+}
+
+// ExpectCtxParam1 sets up expected param ctx for Repository.Cancel
+func (mmCancel *mRepositoryMockCancel) ExpectCtxParam1(ctx context.Context) *mRepositoryMockCancel {
+	if mmCancel.mock.funcCancel != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Set")
+	}
+
+	if mmCancel.defaultExpectation == nil {
+		mmCancel.defaultExpectation = &RepositoryMockCancelExpectation{}
+	}
+
+	if mmCancel.defaultExpectation.params != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Expect")
+	}
+
+	if mmCancel.defaultExpectation.paramPtrs == nil {
+		mmCancel.defaultExpectation.paramPtrs = &RepositoryMockCancelParamPtrs{}
+	}
+	mmCancel.defaultExpectation.paramPtrs.ctx = &ctx
+	mmCancel.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmCancel
+}
+
+// ExpectIdParam2 sets up expected param id for Repository.Cancel
+func (mmCancel *mRepositoryMockCancel) ExpectIdParam2(id uuid.UUID) *mRepositoryMockCancel {
+	if mmCancel.mock.funcCancel != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Set")
+	}
+
+	if mmCancel.defaultExpectation == nil {
+		mmCancel.defaultExpectation = &RepositoryMockCancelExpectation{}
+	}
+
+	if mmCancel.defaultExpectation.params != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Expect")
+	}
+
+	if mmCancel.defaultExpectation.paramPtrs == nil {
+		mmCancel.defaultExpectation.paramPtrs = &RepositoryMockCancelParamPtrs{}
+	}
+	mmCancel.defaultExpectation.paramPtrs.id = &id
+	mmCancel.defaultExpectation.expectationOrigins.originId = minimock.CallerInfo(1)
+
+	return mmCancel
+}
+
+// Inspect accepts an inspector function that has same arguments as the Repository.Cancel
+func (mmCancel *mRepositoryMockCancel) Inspect(f func(ctx context.Context, id uuid.UUID)) *mRepositoryMockCancel {
+	if mmCancel.mock.inspectFuncCancel != nil {
+		mmCancel.mock.t.Fatalf("Inspect function is already set for RepositoryMock.Cancel")
+	}
+
+	mmCancel.mock.inspectFuncCancel = f
+
+	return mmCancel
+}
+
+// Return sets up results that will be returned by Repository.Cancel
+func (mmCancel *mRepositoryMockCancel) Return(err error) *RepositoryMock {
+	if mmCancel.mock.funcCancel != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Set")
+	}
+
+	if mmCancel.defaultExpectation == nil {
+		mmCancel.defaultExpectation = &RepositoryMockCancelExpectation{mock: mmCancel.mock}
+	}
+	mmCancel.defaultExpectation.results = &RepositoryMockCancelResults{err}
+	mmCancel.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmCancel.mock
+}
+
+// Set uses given function f to mock the Repository.Cancel method
+func (mmCancel *mRepositoryMockCancel) Set(f func(ctx context.Context, id uuid.UUID) (err error)) *RepositoryMock {
+	if mmCancel.defaultExpectation != nil {
+		mmCancel.mock.t.Fatalf("Default expectation is already set for the Repository.Cancel method")
+	}
+
+	if len(mmCancel.expectations) > 0 {
+		mmCancel.mock.t.Fatalf("Some expectations are already set for the Repository.Cancel method")
+	}
+
+	mmCancel.mock.funcCancel = f
+	mmCancel.mock.funcCancelOrigin = minimock.CallerInfo(1)
+	return mmCancel.mock
+}
+
+// When sets expectation for the Repository.Cancel which will trigger the result defined by the following
+// Then helper
+func (mmCancel *mRepositoryMockCancel) When(ctx context.Context, id uuid.UUID) *RepositoryMockCancelExpectation {
+	if mmCancel.mock.funcCancel != nil {
+		mmCancel.mock.t.Fatalf("RepositoryMock.Cancel mock is already set by Set")
+	}
+
+	expectation := &RepositoryMockCancelExpectation{
+		mock:               mmCancel.mock,
+		params:             &RepositoryMockCancelParams{ctx, id},
+		expectationOrigins: RepositoryMockCancelExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmCancel.expectations = append(mmCancel.expectations, expectation)
+	return expectation
+}
+
+// Then sets up Repository.Cancel return parameters for the expectation previously defined by the When method
+func (e *RepositoryMockCancelExpectation) Then(err error) *RepositoryMock {
+	e.results = &RepositoryMockCancelResults{err}
+	return e.mock
+}
+
+// Times sets number of times Repository.Cancel should be invoked
+func (mmCancel *mRepositoryMockCancel) Times(n uint64) *mRepositoryMockCancel {
+	if n == 0 {
+		mmCancel.mock.t.Fatalf("Times of RepositoryMock.Cancel mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmCancel.expectedInvocations, n)
+	mmCancel.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmCancel
+}
+
+func (mmCancel *mRepositoryMockCancel) invocationsDone() bool {
+	if len(mmCancel.expectations) == 0 && mmCancel.defaultExpectation == nil && mmCancel.mock.funcCancel == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmCancel.mock.afterCancelCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmCancel.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Cancel implements mm_application.Repository
+func (mmCancel *RepositoryMock) Cancel(ctx context.Context, id uuid.UUID) (err error) {
+	mm_atomic.AddUint64(&mmCancel.beforeCancelCounter, 1)
+	defer mm_atomic.AddUint64(&mmCancel.afterCancelCounter, 1)
+
+	mmCancel.t.Helper()
+
+	if mmCancel.inspectFuncCancel != nil {
+		mmCancel.inspectFuncCancel(ctx, id)
+	}
+
+	mm_params := RepositoryMockCancelParams{ctx, id}
+
+	// Record call args
+	mmCancel.CancelMock.mutex.Lock()
+	mmCancel.CancelMock.callArgs = append(mmCancel.CancelMock.callArgs, &mm_params)
+	mmCancel.CancelMock.mutex.Unlock()
+
+	for _, e := range mmCancel.CancelMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmCancel.CancelMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmCancel.CancelMock.defaultExpectation.Counter, 1)
+		mm_want := mmCancel.CancelMock.defaultExpectation.params
+		mm_want_ptrs := mmCancel.CancelMock.defaultExpectation.paramPtrs
+
+		mm_got := RepositoryMockCancelParams{ctx, id}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmCancel.t.Errorf("RepositoryMock.Cancel got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCancel.CancelMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.id != nil && !minimock.Equal(*mm_want_ptrs.id, mm_got.id) {
+				mmCancel.t.Errorf("RepositoryMock.Cancel got unexpected parameter id, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCancel.CancelMock.defaultExpectation.expectationOrigins.originId, *mm_want_ptrs.id, mm_got.id, minimock.Diff(*mm_want_ptrs.id, mm_got.id))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmCancel.t.Errorf("RepositoryMock.Cancel got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmCancel.CancelMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmCancel.CancelMock.defaultExpectation.results
+		if mm_results == nil {
+			mmCancel.t.Fatal("No results are set for the RepositoryMock.Cancel")
+		}
+		return (*mm_results).err
+	}
+	if mmCancel.funcCancel != nil {
+		return mmCancel.funcCancel(ctx, id)
+	}
+	mmCancel.t.Fatalf("Unexpected call to RepositoryMock.Cancel. %v %v", ctx, id)
+	return
+}
+
+// CancelAfterCounter returns a count of finished RepositoryMock.Cancel invocations
+func (mmCancel *RepositoryMock) CancelAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCancel.afterCancelCounter)
+}
+
+// CancelBeforeCounter returns a count of RepositoryMock.Cancel invocations
+func (mmCancel *RepositoryMock) CancelBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCancel.beforeCancelCounter)
+}
+
+// Calls returns a list of arguments used in each call to RepositoryMock.Cancel.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmCancel *mRepositoryMockCancel) Calls() []*RepositoryMockCancelParams {
+	mmCancel.mutex.RLock()
+
+	argCopy := make([]*RepositoryMockCancelParams, len(mmCancel.callArgs))
+	copy(argCopy, mmCancel.callArgs)
+
+	mmCancel.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockCancelDone returns true if the count of the Cancel invocations corresponds
+// the number of defined expectations
+func (m *RepositoryMock) MinimockCancelDone() bool {
+	if m.CancelMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.CancelMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.CancelMock.invocationsDone()
+}
+
+// MinimockCancelInspect logs each unmet expectation
+func (m *RepositoryMock) MinimockCancelInspect() {
+	for _, e := range m.CancelMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to RepositoryMock.Cancel at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterCancelCounter := mm_atomic.LoadUint64(&m.afterCancelCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.CancelMock.defaultExpectation != nil && afterCancelCounter < 1 {
+		if m.CancelMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to RepositoryMock.Cancel at\n%s", m.CancelMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to RepositoryMock.Cancel at\n%s with params: %#v", m.CancelMock.defaultExpectation.expectationOrigins.origin, *m.CancelMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcCancel != nil && afterCancelCounter < 1 {
+		m.t.Errorf("Expected call to RepositoryMock.Cancel at\n%s", m.funcCancelOrigin)
+	}
+
+	if !m.CancelMock.invocationsDone() && afterCancelCounter > 0 {
+		m.t.Errorf("Expected %d calls to RepositoryMock.Cancel at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.CancelMock.expectedInvocations), m.CancelMock.expectedInvocationsOrigin, afterCancelCounter)
+	}
+}
+
+type mRepositoryMockComplete struct {
+	optional           bool
+	mock               *RepositoryMock
+	defaultExpectation *RepositoryMockCompleteExpectation
+	expectations       []*RepositoryMockCompleteExpectation
+
+	callArgs []*RepositoryMockCompleteParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// RepositoryMockCompleteExpectation specifies expectation struct of the Repository.Complete
+type RepositoryMockCompleteExpectation struct {
+	mock               *RepositoryMock
+	params             *RepositoryMockCompleteParams
+	paramPtrs          *RepositoryMockCompleteParamPtrs
+	expectationOrigins RepositoryMockCompleteExpectationOrigins
+	results            *RepositoryMockCompleteResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// RepositoryMockCompleteParams contains parameters of the Repository.Complete
+type RepositoryMockCompleteParams struct {
+	ctx context.Context
+	id  uuid.UUID
+}
+
+// RepositoryMockCompleteParamPtrs contains pointers to parameters of the Repository.Complete
+type RepositoryMockCompleteParamPtrs struct {
+	ctx *context.Context
+	id  *uuid.UUID
+}
+
+// RepositoryMockCompleteResults contains results of the Repository.Complete
+type RepositoryMockCompleteResults struct {
+	err error
+}
+
+// RepositoryMockCompleteOrigins contains origins of expectations of the Repository.Complete
+type RepositoryMockCompleteExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originId  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmComplete *mRepositoryMockComplete) Optional() *mRepositoryMockComplete {
+	mmComplete.optional = true
+	return mmComplete
+}
+
+// Expect sets up expected params for Repository.Complete
+func (mmComplete *mRepositoryMockComplete) Expect(ctx context.Context, id uuid.UUID) *mRepositoryMockComplete {
+	if mmComplete.mock.funcComplete != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Set")
+	}
+
+	if mmComplete.defaultExpectation == nil {
+		mmComplete.defaultExpectation = &RepositoryMockCompleteExpectation{}
+	}
+
+	if mmComplete.defaultExpectation.paramPtrs != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by ExpectParams functions")
+	}
+
+	mmComplete.defaultExpectation.params = &RepositoryMockCompleteParams{ctx, id}
+	mmComplete.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmComplete.expectations {
+		if minimock.Equal(e.params, mmComplete.defaultExpectation.params) {
+			mmComplete.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmComplete.defaultExpectation.params)
+		}
+	}
+
+	return mmComplete
+}
+
+// ExpectCtxParam1 sets up expected param ctx for Repository.Complete
+func (mmComplete *mRepositoryMockComplete) ExpectCtxParam1(ctx context.Context) *mRepositoryMockComplete {
+	if mmComplete.mock.funcComplete != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Set")
+	}
+
+	if mmComplete.defaultExpectation == nil {
+		mmComplete.defaultExpectation = &RepositoryMockCompleteExpectation{}
+	}
+
+	if mmComplete.defaultExpectation.params != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Expect")
+	}
+
+	if mmComplete.defaultExpectation.paramPtrs == nil {
+		mmComplete.defaultExpectation.paramPtrs = &RepositoryMockCompleteParamPtrs{}
+	}
+	mmComplete.defaultExpectation.paramPtrs.ctx = &ctx
+	mmComplete.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmComplete
+}
+
+// ExpectIdParam2 sets up expected param id for Repository.Complete
+func (mmComplete *mRepositoryMockComplete) ExpectIdParam2(id uuid.UUID) *mRepositoryMockComplete {
+	if mmComplete.mock.funcComplete != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Set")
+	}
+
+	if mmComplete.defaultExpectation == nil {
+		mmComplete.defaultExpectation = &RepositoryMockCompleteExpectation{}
+	}
+
+	if mmComplete.defaultExpectation.params != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Expect")
+	}
+
+	if mmComplete.defaultExpectation.paramPtrs == nil {
+		mmComplete.defaultExpectation.paramPtrs = &RepositoryMockCompleteParamPtrs{}
+	}
+	mmComplete.defaultExpectation.paramPtrs.id = &id
+	mmComplete.defaultExpectation.expectationOrigins.originId = minimock.CallerInfo(1)
+
+	return mmComplete
+}
+
+// Inspect accepts an inspector function that has same arguments as the Repository.Complete
+func (mmComplete *mRepositoryMockComplete) Inspect(f func(ctx context.Context, id uuid.UUID)) *mRepositoryMockComplete {
+	if mmComplete.mock.inspectFuncComplete != nil {
+		mmComplete.mock.t.Fatalf("Inspect function is already set for RepositoryMock.Complete")
+	}
+
+	mmComplete.mock.inspectFuncComplete = f
+
+	return mmComplete
+}
+
+// Return sets up results that will be returned by Repository.Complete
+func (mmComplete *mRepositoryMockComplete) Return(err error) *RepositoryMock {
+	if mmComplete.mock.funcComplete != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Set")
+	}
+
+	if mmComplete.defaultExpectation == nil {
+		mmComplete.defaultExpectation = &RepositoryMockCompleteExpectation{mock: mmComplete.mock}
+	}
+	mmComplete.defaultExpectation.results = &RepositoryMockCompleteResults{err}
+	mmComplete.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmComplete.mock
+}
+
+// Set uses given function f to mock the Repository.Complete method
+func (mmComplete *mRepositoryMockComplete) Set(f func(ctx context.Context, id uuid.UUID) (err error)) *RepositoryMock {
+	if mmComplete.defaultExpectation != nil {
+		mmComplete.mock.t.Fatalf("Default expectation is already set for the Repository.Complete method")
+	}
+
+	if len(mmComplete.expectations) > 0 {
+		mmComplete.mock.t.Fatalf("Some expectations are already set for the Repository.Complete method")
+	}
+
+	mmComplete.mock.funcComplete = f
+	mmComplete.mock.funcCompleteOrigin = minimock.CallerInfo(1)
+	return mmComplete.mock
+}
+
+// When sets expectation for the Repository.Complete which will trigger the result defined by the following
+// Then helper
+func (mmComplete *mRepositoryMockComplete) When(ctx context.Context, id uuid.UUID) *RepositoryMockCompleteExpectation {
+	if mmComplete.mock.funcComplete != nil {
+		mmComplete.mock.t.Fatalf("RepositoryMock.Complete mock is already set by Set")
+	}
+
+	expectation := &RepositoryMockCompleteExpectation{
+		mock:               mmComplete.mock,
+		params:             &RepositoryMockCompleteParams{ctx, id},
+		expectationOrigins: RepositoryMockCompleteExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmComplete.expectations = append(mmComplete.expectations, expectation)
+	return expectation
+}
+
+// Then sets up Repository.Complete return parameters for the expectation previously defined by the When method
+func (e *RepositoryMockCompleteExpectation) Then(err error) *RepositoryMock {
+	e.results = &RepositoryMockCompleteResults{err}
+	return e.mock
+}
+
+// Times sets number of times Repository.Complete should be invoked
+func (mmComplete *mRepositoryMockComplete) Times(n uint64) *mRepositoryMockComplete {
+	if n == 0 {
+		mmComplete.mock.t.Fatalf("Times of RepositoryMock.Complete mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmComplete.expectedInvocations, n)
+	mmComplete.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmComplete
+}
+
+func (mmComplete *mRepositoryMockComplete) invocationsDone() bool {
+	if len(mmComplete.expectations) == 0 && mmComplete.defaultExpectation == nil && mmComplete.mock.funcComplete == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmComplete.mock.afterCompleteCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmComplete.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Complete implements mm_application.Repository
+func (mmComplete *RepositoryMock) Complete(ctx context.Context, id uuid.UUID) (err error) {
+	mm_atomic.AddUint64(&mmComplete.beforeCompleteCounter, 1)
+	defer mm_atomic.AddUint64(&mmComplete.afterCompleteCounter, 1)
+
+	mmComplete.t.Helper()
+
+	if mmComplete.inspectFuncComplete != nil {
+		mmComplete.inspectFuncComplete(ctx, id)
+	}
+
+	mm_params := RepositoryMockCompleteParams{ctx, id}
+
+	// Record call args
+	mmComplete.CompleteMock.mutex.Lock()
+	mmComplete.CompleteMock.callArgs = append(mmComplete.CompleteMock.callArgs, &mm_params)
+	mmComplete.CompleteMock.mutex.Unlock()
+
+	for _, e := range mmComplete.CompleteMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmComplete.CompleteMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmComplete.CompleteMock.defaultExpectation.Counter, 1)
+		mm_want := mmComplete.CompleteMock.defaultExpectation.params
+		mm_want_ptrs := mmComplete.CompleteMock.defaultExpectation.paramPtrs
+
+		mm_got := RepositoryMockCompleteParams{ctx, id}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmComplete.t.Errorf("RepositoryMock.Complete got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmComplete.CompleteMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.id != nil && !minimock.Equal(*mm_want_ptrs.id, mm_got.id) {
+				mmComplete.t.Errorf("RepositoryMock.Complete got unexpected parameter id, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmComplete.CompleteMock.defaultExpectation.expectationOrigins.originId, *mm_want_ptrs.id, mm_got.id, minimock.Diff(*mm_want_ptrs.id, mm_got.id))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmComplete.t.Errorf("RepositoryMock.Complete got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmComplete.CompleteMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmComplete.CompleteMock.defaultExpectation.results
+		if mm_results == nil {
+			mmComplete.t.Fatal("No results are set for the RepositoryMock.Complete")
+		}
+		return (*mm_results).err
+	}
+	if mmComplete.funcComplete != nil {
+		return mmComplete.funcComplete(ctx, id)
+	}
+	mmComplete.t.Fatalf("Unexpected call to RepositoryMock.Complete. %v %v", ctx, id)
+	return
+}
+
+// CompleteAfterCounter returns a count of finished RepositoryMock.Complete invocations
+func (mmComplete *RepositoryMock) CompleteAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmComplete.afterCompleteCounter)
+}
+
+// CompleteBeforeCounter returns a count of RepositoryMock.Complete invocations
+func (mmComplete *RepositoryMock) CompleteBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmComplete.beforeCompleteCounter)
+}
+
+// Calls returns a list of arguments used in each call to RepositoryMock.Complete.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmComplete *mRepositoryMockComplete) Calls() []*RepositoryMockCompleteParams {
+	mmComplete.mutex.RLock()
+
+	argCopy := make([]*RepositoryMockCompleteParams, len(mmComplete.callArgs))
+	copy(argCopy, mmComplete.callArgs)
+
+	mmComplete.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockCompleteDone returns true if the count of the Complete invocations corresponds
+// the number of defined expectations
+func (m *RepositoryMock) MinimockCompleteDone() bool {
+	if m.CompleteMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.CompleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.CompleteMock.invocationsDone()
+}
+
+// MinimockCompleteInspect logs each unmet expectation
+func (m *RepositoryMock) MinimockCompleteInspect() {
+	for _, e := range m.CompleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to RepositoryMock.Complete at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterCompleteCounter := mm_atomic.LoadUint64(&m.afterCompleteCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.CompleteMock.defaultExpectation != nil && afterCompleteCounter < 1 {
+		if m.CompleteMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to RepositoryMock.Complete at\n%s", m.CompleteMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to RepositoryMock.Complete at\n%s with params: %#v", m.CompleteMock.defaultExpectation.expectationOrigins.origin, *m.CompleteMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcComplete != nil && afterCompleteCounter < 1 {
+		m.t.Errorf("Expected call to RepositoryMock.Complete at\n%s", m.funcCompleteOrigin)
+	}
+
+	if !m.CompleteMock.invocationsDone() && afterCompleteCounter > 0 {
+		m.t.Errorf("Expected %d calls to RepositoryMock.Complete at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.CompleteMock.expectedInvocations), m.CompleteMock.expectedInvocationsOrigin, afterCompleteCounter)
+	}
 }
 
 type mRepositoryMockConfirm struct {
@@ -1093,6 +1797,10 @@ func (m *RepositoryMock) MinimockGetInspect() {
 func (m *RepositoryMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockCancelInspect()
+
+			m.MinimockCompleteInspect()
+
 			m.MinimockConfirmInspect()
 
 			m.MinimockCreateInspect()
@@ -1121,6 +1829,8 @@ func (m *RepositoryMock) MinimockWait(timeout mm_time.Duration) {
 func (m *RepositoryMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockCancelDone() &&
+		m.MinimockCompleteDone() &&
 		m.MinimockConfirmDone() &&
 		m.MinimockCreateDone() &&
 		m.MinimockGetDone()
