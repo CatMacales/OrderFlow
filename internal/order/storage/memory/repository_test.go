@@ -300,3 +300,130 @@ func TestConcurrentConfirmAndGet(t *testing.T) {
 	close(start)
 	wg.Wait()
 }
+
+//
+// Complete
+//
+
+func TestComplete(t *testing.T) {
+	ctx := t.Context()
+	for _, tc := range []struct {
+		name    string
+		prepare func(*domain.Order) error
+		status  domain.Status
+		err     error
+	}{
+		{"success", (*domain.Order).Confirm, domain.StatusCompleted, nil},
+		{"invalid state", nil, domain.StatusCreated, domain.ErrInvalidOrderState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repository := memory.NewRepository()
+			order := newOrder(t, uuid.New(), "customer")
+			if tc.prepare != nil {
+				if err := tc.prepare(order); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := repository.Create(ctx, order); err != nil {
+				t.Fatal(err)
+			}
+			before, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := repository.Complete(ctx, order.ID()); !errors.Is(err, tc.err) {
+				t.Fatalf("error=%v, want %v", err, tc.err)
+			}
+			stored, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.Status() != tc.status {
+				t.Fatalf("status=%v, want %v", stored.Status(), tc.status)
+			}
+			if stored.ID() != order.ID() || stored.CustomerID() != order.CustomerID() || !reflect.DeepEqual(stored.Items(), order.Items()) {
+				t.Fatalf("complete changed order data: %+v", stored)
+			}
+			if !reflect.DeepEqual(before, order) {
+				t.Fatal("complete mutated a previously returned order")
+			}
+		})
+	}
+}
+
+func TestCompleteMissing(t *testing.T) {
+	repository := memory.NewRepository()
+	id := uuid.New()
+	if err := repository.Complete(t.Context(), id); !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("error=%v, want %v", err, storage.ErrOrderNotFound)
+	}
+	if order, err := repository.Get(t.Context(), id); order != nil || !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("missing order was created: order=%v error=%v", order, err)
+	}
+}
+
+//
+// Cancel
+//
+
+func TestCancel(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(*domain.Order) error
+		status  domain.Status
+		err     error
+	}{
+		{"success", nil, domain.StatusCancelled, nil},
+		{"invalid state", func(order *domain.Order) error {
+			if err := order.Confirm(); err != nil {
+				return err
+			}
+			return order.Complete()
+		}, domain.StatusCompleted, domain.ErrInvalidOrderState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			repository := memory.NewRepository()
+			order := newOrder(t, uuid.New(), "customer")
+			if tc.prepare != nil {
+				if err := tc.prepare(order); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := repository.Create(ctx, order); err != nil {
+				t.Fatal(err)
+			}
+			before, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := repository.Cancel(ctx, order.ID()); !errors.Is(err, tc.err) {
+				t.Fatalf("error=%v, want %v", err, tc.err)
+			}
+			stored, err := repository.Get(ctx, order.ID())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.Status() != tc.status {
+				t.Fatalf("status=%v, want %v", stored.Status(), tc.status)
+			}
+			if stored.ID() != order.ID() || stored.CustomerID() != order.CustomerID() || !reflect.DeepEqual(stored.Items(), order.Items()) {
+				t.Fatalf("cancel changed order data: %+v", stored)
+			}
+			if !reflect.DeepEqual(before, order) {
+				t.Fatal("cancel mutated a previously returned order")
+			}
+		})
+	}
+}
+
+func TestCancelMissing(t *testing.T) {
+	repository := memory.NewRepository()
+	id := uuid.New()
+	if err := repository.Cancel(t.Context(), id); !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("error=%v, want %v", err, storage.ErrOrderNotFound)
+	}
+	if order, err := repository.Get(t.Context(), id); order != nil || !errors.Is(err, storage.ErrOrderNotFound) {
+		t.Fatalf("missing order was created: order=%v error=%v", order, err)
+	}
+}

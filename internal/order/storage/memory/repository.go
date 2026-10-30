@@ -68,3 +68,43 @@ func (r *Repository) Confirm(_ context.Context, id uuid.UUID) error {
 
 	return nil
 }
+
+func (r *Repository) Complete(_ context.Context, id uuid.UUID) error {
+	const op = "complete order in memory"
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	order, exist := r.orders[id]
+	if !exist {
+		return fmt.Errorf("%s: %w", op, storage.ErrOrderNotFound)
+	}
+
+	err := order.Complete()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	r.orders[id] = order
+
+	return nil
+}
+
+func (r *Repository) Cancel(_ context.Context, id uuid.UUID) error {
+	const op = "cancel order in memory"
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	order, exist := r.orders[id]
+	if !exist {
+		return fmt.Errorf("%s: %w", op, storage.ErrOrderNotFound)
+	}
+
+	err := order.Cancel()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	r.orders[id] = order
+
+	return nil
+}
